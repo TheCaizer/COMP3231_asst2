@@ -1,1 +1,25 @@
-Add your design document in here.
+The design we're going for was the implement an global open file table for per-process
+file descriptor with the struct:
+struct{
+    int Flag; // The flag for the opened file
+    struct vnode* vnodeptr; // Pointer to the vnode
+    off_t Offset; // Number of bytes offset for the opened file 
+    int ReferenceCounter; // Number of reference for this file
+} OpenFileTable;
+
+The per-process file descriptor would be an array of pointers to the openfiletable
+struct inside of proc struct in proc.h.
+
+open(const char* filename, int flags, mode_t mode);
+Open a file by opening a file descriptor table for each process and then invoke vfs_open();
+
+close(int fd);
+
+
+read(int fd, void* buf, size_t buflen);
+
+write(int fd, const void* buf, size_t nbytes);
+
+lseek(int fd, off_t pos, int whence);
+
+dup2(int newfd, int oldfd);
