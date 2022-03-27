@@ -10,16 +10,29 @@ struct{
 The per-process file descriptor would be an array of pointers to the openfiletable
 struct inside of proc struct in proc.h.
 
-open(const char* filename, int flags, mode_t mode);
-Open a file by opening a file descriptor table for each process and then invoke vfs_open();
+HOW TO IMPLEMENT THE FUNCTIONS:
+open();
+We check the filename is valid and if it is invoke vfs_open();
 
-close(int fd);
+close();
+To close a file we have to check if fd is valid, we decrement the reference counter
+if it goes to 0 we can close the file if greater than 0 we don't. We retun 0 on success.
 
+read(;
+We check the fd is valid and the flag is read or rw. Use uio_kinit to get an uio and pass
+into VOP_READ(vnode, uio).
 
-read(int fd, void* buf, size_t buflen);
+write();
+Similar to read we need to check if the fd is valid and then check the flag is write or rw.
+Then we use uio_kinit to get an uio then pass it into VOP_WRITE(vnode, uio).
 
-write(int fd, const void* buf, size_t nbytes);
+lseek();
+We check if the fd is valid, then if it is update the vnode pointer in the fd to 
+the offset input either relative to the start, end or current position in the file
+depending on the value of whence.
 
-lseek(int fd, off_t pos, int whence);
-
-dup2(int newfd, int oldfd);
+dup2();
+We check if fd is a valid one then we check if the newFD is a opened file or not
+if it is then we can close the old file and then point to the new file. If it is 
+not then we can open the file and then close old and point to new. If new and 
+old are the same then we do nothing.
