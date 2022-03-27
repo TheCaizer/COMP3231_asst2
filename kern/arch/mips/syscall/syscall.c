@@ -88,6 +88,11 @@ syscall(struct trapframe *tf)
 
 	callno = tf->tf_v0;
 
+    // lseek() Offset Varaibles
+    uint64_t offset;
+    int whence;
+    off_t retval64;
+
 	/*
 	 * Initialize retval to 0. Many of the system calls don't
 	 * really return a value, just 0 for success and -1 on
@@ -115,7 +120,34 @@ syscall(struct trapframe *tf)
                 panic("Can't continue further until sys_exit() is implemented");
 
 	    /* Add stuff here */
-
+        // open()
+        case SYS_open:
+            err = sys_open((userptr_t)tf->tf_a0, (int)tf->tf_a1, (mode_t)tf->tf_a2, &retval);
+            break;
+        //close()
+        case SYS_close:
+            err = sys_close((int)tf->tf_a0, &retval);
+            break;
+        //read()
+        case SYS_read:
+            err = sys_read((int)tf->tf_a0, (void *)tf->tf_a1, (size_t)tf->tf_a2, &retval);
+            break;
+        //write()
+        case SYS_write:
+            err = sys_write((int)tf->tf_a0, (void *)tf->tf_a1, (size_t)tf->tf_a2, &retval);
+            break;
+        //dup2()
+        case SYS_dup2:
+            err = sys_dup2((int)tf->tf_a0, (int)tf->tf_a1, &retval); 
+            break;
+        //lseek() from asst2 video
+        case SYS_lseek:
+            join32to64(tf->tf_a2, tf->tf_a3, &offset);
+            copyin((userptr_t)tf->tf_sp + 16, &whence, sizeof(int));
+            err = sys_lseek((int)tf->tf_a0, offset, whence, &retval64);
+            split64to32(retval64, &tf->tf_v0, &tf->tf_v1);
+            break;
+        
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;
