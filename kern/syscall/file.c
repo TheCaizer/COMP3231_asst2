@@ -18,21 +18,22 @@
 /*
  * Add your file-related functions here ...
  */
-int sys_open(userptr_t fileNamePtr, int flags, mode_t mode, int *retval){
+int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     struct OpenFileTable *oft;
-    struct vnode *retVn;
-    int err;
+    struct vnode * retVn;
+
     bool spaceFound = false;
-    char *fileNameStr = NULL; 
-    size_t fileNameLen;
+    char *filenameStr;
 
-    copyinstr(fileNamePtr,fileNameStr, NAME_MAX,&fileNameLen);
+    int err = copyinstr(filename,filenameStr,NAME_MAX, NULL);
 
-    err = vfs_open(fileNameStr, flags, mode,&retVn);
     if(err){
         return err;
+        *retval = -1;
     }
 
+    err = vfs_open(filenameStr, flags, mode,&retVn);
+    
     oft = kmalloc(sizeof(struct OpenFileTable));
 
     oft->Flag = flags;
@@ -40,6 +41,17 @@ int sys_open(userptr_t fileNamePtr, int flags, mode_t mode, int *retval){
     oft->Offset = 0;
     oft->ReferenceCounter = retVn->vn_refcount;
     
+    int oftPos; 
+
+    for(int i = 0; i <OPEN_MAX; i++){
+        if(global_oft[i]== NULL){
+            global_oft[i] = oft;
+            spaceFound = true;
+            oftPos = i;
+            i = OPEN_MAX;
+        }
+    }
+
     for(int i = 0; i <OPEN_MAX; i++){
         if(curproc->FileDescriptorTable[i]== NULL){
             curproc->FileDescriptorTable[i] = oft;
@@ -52,9 +64,51 @@ int sys_open(userptr_t fileNamePtr, int flags, mode_t mode, int *retval){
     if(spaceFound == false){
         vfs_close(retVn);
         kfree(oft);
+        *retval = -1;
         return EMFILE;
     }
     
-    return 0;
 
+    for(int i = 0; i <OPEN_MAX; i++){
+        if(curproc->FileDescriptorTable[i]== NULL){
+            curproc->FileDescriptorTable[i] = &global_oft[oftPos];
+            spaceFound = true;
+            break;
+        }
+    }
+
+    if(spaceFound == false){
+        vfs_close(retVn);
+        kfree(oft);
+        *retval = -1;
+        return EMFILE;
+    }
+
+    *retval = oftPos;
+    return 0;
+}
+
+
+
+int sys_close(int fd, int *retval){
+    struct OpenFileTable *file = curproc->FileDescriptorTable[fd];
+    if(file == NULL){
+        *retval = -1;
+        return EBADF;
+    }
+    // check if it is a valid fd or not
+    if(fd >= OPEN_MAX || fd < 0){
+        *retval = -1;
+        return EBADF;
+    }
+    if(file->ReferenceCounter > 0){
+        file->ReferenceCounter--;
+    }
+    if(file->ReferenceCounter == 0){
+        vfs_close(file->vnodeptr);
+        kfree(file);
+        curproc->FileDescriptorTable[fd] == NULL;
+    }
+    *retval = 0;
+    return 0;
 }

@@ -73,7 +73,7 @@ struct proc {
 
 	/* add more material here as needed */
     // The per-process file descriptor in each file
-    struct OpenFileTable *FileDescriptorTable[OPEN_MAX];
+    struct OpenFileTable **FileDescriptorTable[OPEN_MAX];
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
