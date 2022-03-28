@@ -18,4 +18,38 @@
 /*
  * Add your file-related functions here ...
  */
+int sys_open(const char *filename, int flags, mode_t mode, **retval){
+    struct OpenFileTable *oft;
+    struct vnode * retVn;
+    int err;
+    bool spaceFound = false;
 
+    err = vfs_open(filename, flags, mode,retVn);
+    if(err){]
+        return err;
+    }
+
+    oft = kmalloc(sizeof(stuct OpenFileTable));
+
+    oft->Flag = flags;
+    oft->vnodeprt = retVn;
+    oft->Offset = 0;
+    oft->ReferenceCounter = retVn->vn_refcount;
+    
+    for(i = 0; i <OPEN_MAX); i++){
+        if(curproc->FileDescriptorTable[i]== NULL){
+            curproc->FileDescriptorTable[i] = oft;
+            spaceFound = true;
+            break;
+        }
+    }
+
+    if(spaceFound == false){
+        vfs_close(retVn);
+        kfree(oft);
+        return EMFILE;
+    }
+    
+    return 0;
+
+}
