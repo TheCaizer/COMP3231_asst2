@@ -1,5 +1,5 @@
-The design we're going for was the implement an global open file table for per-process
-file descriptor with the struct:
+The design we're going for was the implement an global open file table per-process
+with the struct:
 struct{
     int Flag; // The flag for the opened file
     struct vnode* vnodeptr; // Pointer to the vnode
@@ -8,7 +8,9 @@ struct{
 } OpenFileTable;
 
 The per-process file descriptor would be an array of pointers to the openfiletable
-struct inside of proc struct in proc.h.
+struct inside of proc struct in proc.h as shown in the Lecture slides. We have
+file descriptors in each process in proc.h whose index is the FD.
+
 
 HOW TO IMPLEMENT THE FUNCTIONS:
 open();
