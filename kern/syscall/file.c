@@ -19,3 +19,25 @@
  * Add your file-related functions here ...
  */
 
+int sys_close(int fd, int *retval){
+    struct OpenFileTable *file = curproc->FileDescriptorTable[fd];
+    if(file == NULL){
+        *retval = -1;
+        return EBADF;
+    }
+    // check if it is a valid fd or not
+    if(fd >= OPEN_MAX || fd < 0){
+        *retval = -1;
+        return EBADF;
+    }
+    if(file->ReferenceCounter > 0){
+        file->ReferenceCounter--;
+    }
+    if(file->ReferenceCounter == 0){
+        vfs_close(file->vnodeptr);
+        kfree(file);
+        curproc->FileDescriptorTable[fd] == NULL;
+    }
+    *retval = 0;
+    return 0;
+}
