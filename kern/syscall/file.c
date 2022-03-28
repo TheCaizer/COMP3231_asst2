@@ -18,29 +18,34 @@
 /*
  * Add your file-related functions here ...
  */
-int sys_open(const char *filename, int flags, mode_t mode, **retval){
+int sys_open(userptr_t fileNamePtr, int flags, mode_t mode, int *retval){
     struct OpenFileTable *oft;
-    struct vnode * retVn;
+    struct vnode *retVn;
     int err;
     bool spaceFound = false;
+    char *fileNameStr = NULL; 
+    size_t fileNameLen;
 
-    err = vfs_open(filename, flags, mode,retVn);
-    if(err){]
+    copyinstr(fileNamePtr,fileNameStr, NAME_MAX,&fileNameLen);
+
+    err = vfs_open(fileNameStr, flags, mode,&retVn);
+    if(err){
         return err;
     }
 
-    oft = kmalloc(sizeof(stuct OpenFileTable));
+    oft = kmalloc(sizeof(struct OpenFileTable));
 
     oft->Flag = flags;
-    oft->vnodeprt = retVn;
+    oft->vnodeptr = retVn;
     oft->Offset = 0;
     oft->ReferenceCounter = retVn->vn_refcount;
     
-    for(i = 0; i <OPEN_MAX); i++){
+    for(int i = 0; i <OPEN_MAX; i++){
         if(curproc->FileDescriptorTable[i]== NULL){
             curproc->FileDescriptorTable[i] = oft;
+            *retval = i;
             spaceFound = true;
-            break;
+            i = OPEN_MAX;
         }
     }
 

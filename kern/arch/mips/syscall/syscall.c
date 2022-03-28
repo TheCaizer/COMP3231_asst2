@@ -31,6 +31,7 @@
 #include <kern/errno.h>
 #include <kern/syscall.h>
 #include <lib.h>
+#include <file.h>
 #include <mips/trapframe.h>
 #include <thread.h>
 #include <current.h>

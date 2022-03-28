@@ -21,5 +21,6 @@ struct OpenFileTable{
     int ReferenceCounter; // Number of reference for this file
 };
 
+int sys_open(userptr_t filename, int flags, mode_t mode, int *retval);
 
 #endif /* _FILE_H_ */
