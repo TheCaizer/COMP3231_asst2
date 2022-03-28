@@ -21,12 +21,12 @@
 
 int sys_close(int fd, int *retval){
     struct OpenFileTable *file = curproc->FileDescriptorTable[fd];
-    if(file == NULL){
+    // check if it is a valid fd or not
+    if(fd >= OPEN_MAX || fd < 0){
         *retval = -1;
         return EBADF;
     }
-    // check if it is a valid fd or not
-    if(fd >= OPEN_MAX || fd < 0){
+    if(file == NULL){
         *retval = -1;
         return EBADF;
     }
