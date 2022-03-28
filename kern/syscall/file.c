@@ -88,10 +88,10 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     return 0;
 }
 
-
-
 int sys_close(int fd, int *retval){
+    // Open the file in the FileDescriptorTable
     struct OpenFileTable *file = curproc->FileDescriptorTable[fd];
+    // Check if it is a null value then return error
     if(file == NULL){
         *retval = -1;
         return EBADF;
@@ -101,13 +101,18 @@ int sys_close(int fd, int *retval){
         *retval = -1;
         return EBADF;
     }
+    // 
     if(file->ReferenceCounter > 0){
         file->ReferenceCounter--;
+    }
+    else{
+        *retval = -1;
+        return ENOENT;
     }
     if(file->ReferenceCounter == 0){
         vfs_close(file->vnodeptr);
         kfree(file);
-        curproc->FileDescriptorTable[fd] == NULL;
+        curproc->FileDescriptorTable[fd] = NULL;
     }
     *retval = 0;
     return 0;

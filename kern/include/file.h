@@ -21,6 +21,15 @@ struct OpenFileTable{
     int ReferenceCounter; // Number of reference for this file
 };
 
+<<<<<<< HEAD
 int sys_open(userptr_t filename, int flags, mode_t mode, int *retval);
+=======
+// global open file table
+struct OpenFileTable *global_oft[OPEN_MAX];
+
+// The functions implementation
+sys_close(int fd, int *retval);
+
+>>>>>>> master
 
 #endif /* _FILE_H_ */
