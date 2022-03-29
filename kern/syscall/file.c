@@ -32,7 +32,7 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
         *retval = -1;
     }
 
-    err = vfs_open(filenameStr, flags, mode,&retVn);
+    vfs_open(filenameStr, flags, mode,&retVn);
     
     oft = kmalloc(sizeof(struct OpenFileTable));
 
@@ -48,12 +48,12 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
             oftPos = i;
             i = OPEN_MAX;
 
-            for(int i = 0; i <OPEN_MAX; i++){
-                if(curproc->FileDescriptorTable[i]== NULL){
-                curproc->FileDescriptorTable[i] = &oft;
-                *retval = i;
-                spaceFound = true;
-                i = OPEN_MAX;
+            for(int j = 0; j <OPEN_MAX; j++){
+                if(curproc->FileDescriptorTable[j]== NULL){
+                    curproc->FileDescriptorTable[j] = &oft;
+                    *retval = j;
+                    spaceFound = true;
+                    j = OPEN_MAX;
                 }
             }
 
@@ -105,18 +105,24 @@ int sys_close(int fd, int *retval){
 }
 
 //Function to initialze the tables when the program runs
-int initialize_tables(void){
+int initialize_tables(){
     // checks if global_oft exist
-    if(global_oft == NULL){
-        global_oft = kmalloc(OPEN_MAX * sizeof(struct OpenFileTable*));
+    
+        *global_oft = kmalloc(OPEN_MAX * sizeof(struct OpenFileTable));
         // no memeory for the table;
         if(global_oft == NULL){
             return ENOMEM;
         }
         for(int i = 0; i < OPEN_MAX; i++){
-            global_oft[i] = NULL;
+            struct OpenFileTable *newOft;
+            newOft = kmalloc(sizeof(struct OpenFileTable));
+            newOft->Flag = -1;
+            newOft->ReferenceCounter = 0;
+            newOft->Offset = 0;
+            newOft->vnodeptr = NULL;
+            global_oft[i] = newOft;
         }
-    }
+    
     for(int j = 0; j < OPEN_MAX;j++){
         curproc->FileDescriptorTable[j] = NULL;
     }
@@ -124,14 +130,14 @@ int initialize_tables(void){
     char con1[5] = "cons:";
     char con2[5] = "cons:";
 
-    global_oft[1]->flags = O_WRONLY;
+    global_oft[1]->Flag = O_WRONLY;
     global_oft[1]->ReferenceCounter = 1;
     global_oft[1]->Offset = 0;
-    vfs_open(con1, O_WRONLY, 0, &global_oft[1]);
+    vfs_open(con1, O_WRONLY, 0, &global_oft[1]->vnodeptr);
 
-    global_oft[2]->flags = O_WRONLY;
+    global_oft[2]->Flag = O_WRONLY;
     global_oft[2]->ReferenceCounter = 1;
     global_oft[2]->Offset = 0;
-    vfs_open(con2, O_WRONLY, 0, &global_oft[2]);
+    vfs_open(con2, O_WRONLY, 0, &global_oft[2]->vnodeptr);
     return 0;
 }
