@@ -25,7 +25,8 @@ struct OpenFileTable{
 struct OpenFileTable *global_oft[OPEN_MAX];
 
 // The functions implementation
-sys_close(int fd, int *retval);
+int sys_close(int fd, int *retval);
 
-
+//HELPER
+int initialize_tables();
 #endif /* _FILE_H_ */
