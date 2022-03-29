@@ -23,7 +23,7 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     struct vnode * retVn;
 
     bool spaceFound = false;
-    char *filenameStr;
+    char *filenameStr = kmalloc(sizeof(NAME_MAX));
 
     int err = copyinstr(filename,filenameStr,NAME_MAX, NULL);
 
@@ -45,20 +45,23 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
 
     for(int i = 0; i <OPEN_MAX; i++){
         if(global_oft[i]== NULL){
-            global_oft[i] = oft;
-            spaceFound = true;
             oftPos = i;
             i = OPEN_MAX;
-        }
-    }
 
-    for(int i = 0; i <OPEN_MAX; i++){
-        if(curproc->FileDescriptorTable[i]== NULL){
-            curproc->FileDescriptorTable[i] = oft;
-            *retval = i;
-            spaceFound = true;
-            i = OPEN_MAX;
+            for(int i = 0; i <OPEN_MAX; i++){
+                if(curproc->FileDescriptorTable[i]== NULL){
+                curproc->FileDescriptorTable[i] = &oft;
+                *retval = i;
+                spaceFound = true;
+                i = OPEN_MAX;
+                }
+            }
+
+            if(spaceFound == true){
+                global_oft[oftPos] = oft;
+            }
         }
+
     }
 
     if(spaceFound == false){
@@ -67,30 +70,14 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
         *retval = -1;
         return EMFILE;
     }
+
     
-
-    for(int i = 0; i <OPEN_MAX; i++){
-        if(curproc->FileDescriptorTable[i]== NULL){
-            curproc->FileDescriptorTable[i] = &global_oft[oftPos];
-            spaceFound = true;
-            break;
-        }
-    }
-
-    if(spaceFound == false){
-        vfs_close(retVn);
-        kfree(oft);
-        *retval = -1;
-        return EMFILE;
-    }
-
-    *retval = oftPos;
     return 0;
 }
 
 int sys_close(int fd, int *retval){
     // Open the file in the FileDescriptorTable
-    struct OpenFileTable *file = curproc->FileDescriptorTable[fd];
+    struct OpenFileTable *file = *(curproc->FileDescriptorTable[fd]);
     // Check if it is a null value then return error
     if(file == NULL){
         *retval = -1;

@@ -89,10 +89,12 @@ syscall(struct trapframe *tf)
 
 	callno = tf->tf_v0;
 
+	/*
     // lseek() Offset Varaibles
     uint64_t offset;
     int whence;
     off_t retval64;
+	*/
 
 	/*
 	 * Initialize retval to 0. Many of the system calls don't
@@ -130,7 +132,7 @@ syscall(struct trapframe *tf)
             err = sys_close((int)tf->tf_a0, &retval);
             break;
         //read()
-        case SYS_read:
+       /* case SYS_read:
             err = sys_read((int)tf->tf_a0, (void *)tf->tf_a1, (size_t)tf->tf_a2, &retval);
             break;
         //write()
@@ -148,7 +150,7 @@ syscall(struct trapframe *tf)
             err = sys_lseek((int)tf->tf_a0, offset, whence, &retval64);
             split64to32(retval64, &tf->tf_v0, &tf->tf_v1);
             break;
-        
+        */
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;

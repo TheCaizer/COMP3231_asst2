@@ -26,7 +26,7 @@ int sys_open(userptr_t filename, int flags, mode_t mode, int *retval);
 struct OpenFileTable *global_oft[OPEN_MAX];
 
 // The functions implementation
-sys_close(int fd, int *retval);
+int sys_close(int fd, int *retval);
 
 
 #endif /* _FILE_H_ */
