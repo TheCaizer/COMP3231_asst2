@@ -48,3 +48,7 @@ int sys_close(int fd, int *retval){
     *retval = 0;
     return 0;
 }
+
+void initialize_tables()[
+    
+]
