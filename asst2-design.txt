@@ -1,4 +1,4 @@
-The design we're going for was the implement an global open file table per-process
+The design we're going for was the implement an array of global open file table 
 with the struct:
 struct{
     int Flag; // The flag for the opened file
@@ -7,7 +7,7 @@ struct{
     int ReferenceCounter; // Number of reference for this file
 } OpenFileTable;
 
-The per-process file descriptor would be an array of pointers to the openfiletable
+The per-process file descriptor would be an array of pointers of pointer to the openfiletable
 struct inside of proc struct in proc.h as shown in the Lecture slides. We have
 file descriptors in each process in proc.h whose index is the FD.
 

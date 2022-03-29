@@ -83,8 +83,7 @@ int sys_close(int fd, int *retval){
         *retval = -1;
         return EBADF;
     }
-    // check if it is a valid fd or not
-    if(fd >= OPEN_MAX || fd < 0){
+    if(file == NULL){
         *retval = -1;
         return EBADF;
     }
@@ -102,5 +101,37 @@ int sys_close(int fd, int *retval){
         curproc->FileDescriptorTable[fd] = NULL;
     }
     *retval = 0;
+    return 0;
+}
+
+//Function to initialze the tables when the program runs
+int initialize_tables(void){
+    // checks if global_oft exist
+    if(global_oft == NULL){
+        global_oft = kmalloc(OPEN_MAX * sizeof(struct OpenFileTable*));
+        // no memeory for the table;
+        if(global_oft == NULL){
+            return ENOMEM;
+        }
+        for(int i = 0; i < OPEN_MAX; i++){
+            global_oft[i] = NULL;
+        }
+    }
+    for(int j = 0; j < OPEN_MAX;j++){
+        curproc->FileDescriptorTable[j] = NULL;
+    }
+    //Only need to connect the stdout and stderr to console
+    char con1[5] = "cons:";
+    char con2[5] = "cons:";
+
+    global_oft[1]->flags = O_WRONLY;
+    global_oft[1]->ReferenceCounter = 1;
+    global_oft[1]->Offset = 0;
+    vfs_open(con1, O_WRONLY, 0, &global_oft[1]);
+
+    global_oft[2]->flags = O_WRONLY;
+    global_oft[2]->ReferenceCounter = 1;
+    global_oft[2]->Offset = 0;
+    vfs_open(con2, O_WRONLY, 0, &global_oft[2]);
     return 0;
 }
