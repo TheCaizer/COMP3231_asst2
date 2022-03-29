@@ -19,59 +19,71 @@
  * Add your file-related functions here ...
  */
 int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
-    struct OpenFileTable *oft;
     struct vnode * retVn;
 
     bool spaceFound = false;
-    char *filenameStr = kmalloc(sizeof(NAME_MAX));
+    char *filenameStr = kmalloc(sizeof(char) * NAME_MAX);
+
+    if(filenameStr == NULL){
+        *retval = -1;
+        return ENOMEM;
+    }
 
     int err = copyinstr(filename,filenameStr,NAME_MAX, NULL);
 
     if(err){
-        return err;
+        kfree(filenameStr);
         *retval = -1;
+        return err;
     }
 
-    vfs_open(filenameStr, flags, mode,&retVn);
-    
-    oft = kmalloc(sizeof(struct OpenFileTable));
+    int res = vfs_open(filenameStr, flags, mode,&retVn);
 
-    oft->Flag = flags;
-    oft->vnodeptr = retVn;
-    oft->Offset = 0;
-    oft->ReferenceCounter = retVn->vn_refcount;
+    if(res){
+        *retval = -1;
+        return res;
+    }
     
     int oftPos; 
+
+    struct OpenFileTable **fd;
 
     for(int i = 0; i <OPEN_MAX; i++){
         if(global_oft[i]== NULL){
             oftPos = i;
-            i = OPEN_MAX;
-
-            for(int j = 0; j <OPEN_MAX; j++){
-                if(curproc->FileDescriptorTable[j]== NULL){
-                    curproc->FileDescriptorTable[j] = &oft;
-                    *retval = j;
-                    spaceFound = true;
-                    j = OPEN_MAX;
-                }
-            }
-
-            if(spaceFound == true){
-                global_oft[oftPos] = oft;
-            }
+            spaceFound = true;
+            global_oft[oftPos] = kmalloc(sizeof(struct OpenFileTable));
+            global_oft[oftPos]->Flag = flags;
+            global_oft[oftPos]->vnodeptr = retVn;
+            global_oft[oftPos]->ReferenceCounter = 1;
+            fd = &global_oft[oftPos];
+            break;
         }
-
     }
 
     if(spaceFound == false){
         vfs_close(retVn);
-        kfree(oft);
         *retval = -1;
+        return ENFILE;
+    }
+
+    spaceFound = false;
+    for(int j = 0; j <OPEN_MAX; j++){
+        if(curproc->FileDescriptorTable[j]== NULL){
+            curproc->FileDescriptorTable[j] = fd;
+            *retval = j;
+            spaceFound = true;
+            break;
+        }
+    }
+    if(!spaceFound){
+        *retval = -1;
+        vfs_close(retVn);
+        kfree(*fd);
         return EMFILE;
     }
 
-    
+    kfree(filenameStr);
     return 0;
 }
 
