@@ -18,7 +18,7 @@
 /*
  * Add your file-related functions here ...
  */
-int lseek(int fd, off_t pos, int whence, int *retval){
+int sys_lseek(int fd, off_t pos, int whence, off_t *retval){
     int index = curproc->FileDescriptorTable[fd];
     int err;
     struct stat vnodeStat;
@@ -194,7 +194,7 @@ int sys_close(int fd, int *retval){
     return 0;
 }
 
-ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
+ssize_t sys_write(int fd, void *buf, size_t nbytes, int *retval){
     //Check valid fd
     if(fd >= OPEN_MAX || fd < 0){
         *retval = -1;
@@ -216,7 +216,7 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
     struct iovec iov;
     struct uio u_io;
     // Get the UIO
-    uio_uinit(&iov, &u_io, (userptr_t) buf, nbytes, global_oft[index].Offset, UIO_WRITE);
+    uio_uinit(&iov, &u_io, buf, nbytes, global_oft[index].Offset, UIO_WRITE);
     
     int res = VOP_WRITE(global_oft[index].vnodeptr, &u_io);
     if(res){
@@ -278,7 +278,7 @@ int sys_dup2(int oldfd, int newfd, int *retval){
 
 //Function to initialze the tables when the program runs
 int initialize_tables(void){
-    global_oft = kmalloc(OPEN_MAX * sizeof(struct OpenFileTable));
+    global_oft = (struct OpenFileTable*) kmalloc(OPEN_MAX * sizeof(struct OpenFileTable));
     // no memeory for the table;
     if(global_oft == NULL){
         return ENOMEM;
@@ -293,13 +293,19 @@ int initialize_tables(void){
     //connect the stdout and stderr to console
     char conname[5];
 
-    strcpy(conname, "cons:");
+    strcpy(conname, "con:");
+    global_oft[0].Flag = O_WRONLY;
+    global_oft[0].ReferenceCounter = 1;
+    global_oft[0].Offset = 0;
+    vfs_open(conname, O_WRONLY, 0, &global_oft[0].vnodeptr);
+
+    strcpy(conname, "con:");
     global_oft[1].Flag = O_WRONLY;
     global_oft[1].ReferenceCounter = 1;
     global_oft[1].Offset = 0;
     vfs_open(conname, O_WRONLY, 0, &global_oft[1].vnodeptr);
 
-    strcpy(conname, "cons:");
+    strcpy(conname, "con:");
     global_oft[2].Flag = O_WRONLY;
     global_oft[2].ReferenceCounter = 1;
     global_oft[2].Offset = 0;

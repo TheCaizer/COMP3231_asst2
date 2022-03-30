@@ -36,7 +36,8 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
-
+#include <copyinout.h>
+#include <endian.h>
 
 /*
  * System call dispatcher.
@@ -89,12 +90,10 @@ syscall(struct trapframe *tf)
 
 	callno = tf->tf_v0;
 
-	/*
     // lseek() Offset Varaibles
     uint64_t offset;
     int whence;
     off_t retval64;
-	*/
 
 	/*
 	 * Initialize retval to 0. Many of the system calls don't
@@ -117,11 +116,6 @@ syscall(struct trapframe *tf)
 				 (userptr_t)tf->tf_a1);
 		break;
 
-        case SYS__exit:
-                kprintf("exit() was called, but it's unimplemented.\n");
-                kprintf("This is expected if your user-level program has finished.\n");
-                panic("Can't continue further until sys_exit() is implemented");
-
 	    /* Add stuff here */
         // open()
         case SYS_open:
@@ -133,14 +127,13 @@ syscall(struct trapframe *tf)
             break;
         //write()
         case SYS_write:
-            err = sys_write((int)tf->tf_a0, (const void *)tf->tf_a1, (size_t)tf->tf_a2, &retval);
+            err = sys_write((int)tf->tf_a0, (void *)tf->tf_a1, (size_t)tf->tf_a2, &retval);
             break;
         //read()
        case SYS_read:
             err = sys_read((int)tf->tf_a0, (void *)tf->tf_a1, (size_t)tf->tf_a2, &retval);
             break;
         //dup2()
-        /*
         case SYS_dup2:
             err = sys_dup2((int)tf->tf_a0, (int)tf->tf_a1, &retval); 
             break;
@@ -151,7 +144,10 @@ syscall(struct trapframe *tf)
             err = sys_lseek((int)tf->tf_a0, offset, whence, &retval64);
             split64to32(retval64, &tf->tf_v0, &tf->tf_v1);
             break;
-        */
+        case SYS__exit:
+            kprintf("exit() was called, but it's unimplemented.\n");
+            kprintf("This is expected if your user-level program has finished.\n");
+            panic("Can't continue further until sys_exit() is implemented");
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;

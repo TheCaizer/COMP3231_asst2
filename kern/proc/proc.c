@@ -83,7 +83,10 @@ proc_create(const char *name)
 	proc->p_cwd = NULL;
 
     // Create the fd table
-    for(int j = 0; j < OPEN_MAX; j++){
+    proc->FileDescriptorTable[0] = 0;
+    proc->FileDescriptorTable[1] = 1;
+    proc->FileDescriptorTable[2] = 2;
+    for(int j = 3; j < OPEN_MAX; j++){
         proc->FileDescriptorTable[j] = -1;
     }    
 
