@@ -20,8 +20,10 @@ open();
 We check the filename is valid and if it is invoke vfs_open();
 
 close();
-To close a file we have to check if fd is valid, we decrement the reference counter
-if it goes to 0 we can close the file if greater than 0 we don't. We retun 0 on success.
+To close a file we have to check if fd is valid and there is a valid number in the global_oft corresponding to the fd, 
+we decrement the reference counter and then unassigned the fd. 
+If ReferenceCounter goes to 0 we can close the file if greater than 0 we don't. We retun 0 on success.
+retval is -1 for error and 0 for success.
 
 read(;
 We check the fd is valid and the flag is read or rw. Use uio_kinit to get an uio and pass
