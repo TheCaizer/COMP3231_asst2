@@ -23,7 +23,7 @@ struct OpenFileTable{
 
 int sys_open(userptr_t filename, int flags, mode_t mode, int *retval);
 // global open file table
-struct OpenFileTable *global_oft[OPEN_MAX];
+struct OpenFileTable *global_oft;
 
 // The functions implementation
 int sys_close(int fd, int *retval);

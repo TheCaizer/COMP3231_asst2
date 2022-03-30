@@ -1,16 +1,19 @@
-The design we're going for was the implement an array of global open file table 
-with the struct:
+The design we were going for was to create a OpenFileTable struct which contains 
+the information of the file as show below:
 struct{
     int Flag; // The flag for the opened file
     struct vnode* vnodeptr; // Pointer to the vnode
     off_t Offset; // Number of bytes offset for the opened file 
     int ReferenceCounter; // Number of reference for this file
 } OpenFileTable;
-
-The per-process file descriptor would be an array of pointers of pointer to the openfiletable
-struct inside of proc struct in proc.h as shown in the Lecture slides. We have
-file descriptors in each process in proc.h whose index is the FD.
-
+Then we would have a global vairable called global_oft which is shared between all
+the processes. global_oft is a pointers that point to one of these struct
+for each file.
+struct OpenFileTable *global_oft;
+The per-process file descriptor table is an int array that returns the value which corresponds to the index global_oft.
+int FileDescriptorTable[OPEN_MAX];
+Which is inside the proc struct in proc.h so that it in every process as shown in the lecture slides.
+We have file descriptors in each process in proc.h whose index is the file descriptors.
 
 HOW TO IMPLEMENT THE FUNCTIONS:
 open();

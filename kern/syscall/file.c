@@ -150,7 +150,7 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
     struct iovec iov;
     struct uio u_io;
     // Get the UIO
-    uio_uinit(&iov, &u_io, buf, nbytes, file->Offset, UIO_WRITE);
+    uio_uinit(&iov, &u_io, (userptr_t) buf, nbytes, file->Offset, UIO_WRITE);
     
     int res = VOP_WRITE(file->vnodeptr, &u_io);
     if(res){
