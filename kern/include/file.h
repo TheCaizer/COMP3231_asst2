@@ -24,10 +24,12 @@ struct OpenFileTable{
 int sys_open(userptr_t filename, int flags, mode_t mode, int *retval);
 sys_read(int fd, void *buf, size_t buflen, int *retval);
 // global open file table
-struct OpenFileTable *global_oft[OPEN_MAX];
+struct OpenFileTable *global_oft;
 
 // The functions implementation
 int sys_close(int fd, int *retval);
+ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval);
+
 
 //HELPER
 int initialize_tables(void);
