@@ -19,7 +19,7 @@
  * Add your file-related functions here ...
  */
 ssize_t sys_read(int fd, void *buf, size_t buflen, int *retval){
-    if (curproc->FileDescriptorTable[fd] = NULL){
+    if (curproc->FileDescriptorTable[fd] == -1){
         *retval = -1;
         return EBADF;
     }
@@ -31,7 +31,7 @@ ssize_t sys_read(int fd, void *buf, size_t buflen, int *retval){
     
     uio_uinit(&iovecRead,&uioRead,buf,buflen,global_oft[index].Offset,UIO_READ);
 
-    int err = VOP_READ(global_oft[index].vnodeptr,uioRead);
+    int err = VOP_READ(global_oft[index].vnodeptr, &uioRead);
 
     if(err){
         *retval = -1;
@@ -44,7 +44,7 @@ ssize_t sys_read(int fd, void *buf, size_t buflen, int *retval){
     return 0;
 
 }
-int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
+int sys_open(userptr_t filename, int flags, mode_t mode, int *retval){
     struct vnode * retVn;
 
     bool spaceFound = false;
@@ -95,7 +95,7 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     spaceFound = false;
     //Check for empty FileDescriptor Slot
     for(int j = 0; j <OPEN_MAX; j++){
-        if(curproc->FileDescriptorTable[j]== NULL){
+        if(curproc->FileDescriptorTable[j]== -1){
             curproc->FileDescriptorTable[j] = oftPos;
             *retval = j;
             spaceFound = true;
@@ -221,7 +221,7 @@ int sys_dup2(int oldfd, int newfd, int *retval){
     }
     // Check if the new File descriptor is an opened one
     if(global_oft[newIndex].vnodeptr != NULL){
-        int err = sys_close(newfd, &retval);
+        int err = sys_close(newfd, retval);
         if(err){
             return EBADF;
         }
