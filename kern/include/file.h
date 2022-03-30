@@ -27,6 +27,7 @@ sys_read(int fd, void *buf, size_t buflen, int *retval);
 struct OpenFileTable *global_oft;
 
 // The functions implementation
+int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval);
 int sys_close(int fd, int *retval);
 ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval);
 

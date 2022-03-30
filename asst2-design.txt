@@ -10,7 +10,7 @@ Then we would have a global vairable called global_oft which is shared between a
 the processes. global_oft is a pointers that point to one of these struct
 for each file.
 struct OpenFileTable *global_oft;
-The per-process file descriptor table is an int array that returns the value which corresponds to the index global_oft.
+The per-process file descriptor table is an int array that returns the value which corresponds to the index of global_oft.
 int FileDescriptorTable[OPEN_MAX];
 Which is inside the proc struct in proc.h so that it in every process as shown in the lecture slides.
 We have file descriptors in each process in proc.h whose index is the file descriptors.
