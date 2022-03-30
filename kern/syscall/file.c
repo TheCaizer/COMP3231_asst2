@@ -109,8 +109,8 @@ int sys_close(int fd, int *retval){
         return EBADF;
     }
     // check if there are reference counters if so decrement
-    if(global_oft[index]->ReferenceCounter > 0){
-        global_oft[index]->ReferenceCounter--;
+    if(global_oft[index].ReferenceCounter > 0){
+        global_oft[index].ReferenceCounter--;
     }
     // If not then error
     else{
@@ -120,11 +120,11 @@ int sys_close(int fd, int *retval){
     // Unassigned the fd
     curproc->FileDescriptorTable[fd] = -1;
     // There are no reference counter threfore we close the file
-    if(global_oft[index]->ReferenceCounter == 0){
-        vfs_close(global_oft[index]->vnodeptr);
-        global_oft[index]->Offset = 0;
-        global_oft[index]->vnodeptr = NULL;
-        global_oft[index]->Flag = -1;
+    if(global_oft[index].ReferenceCounter == 0){
+        vfs_close(global_oft[index].vnodeptr);
+        global_oft[index].Offset = 0;
+        global_oft[index].vnodeptr = NULL;
+        global_oft[index].Flag = -1;
     }
     *retval = 0;
     return 0;
@@ -152,46 +152,92 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
     struct iovec iov;
     struct uio u_io;
     // Get the UIO
-    uio_uinit(&iov, &u_io, (userptr_t) buf, nbytes, global_oft[index]->Offset, UIO_WRITE);
+    uio_uinit(&iov, &u_io, (userptr_t) buf, nbytes, global_oft[index].Offset, UIO_WRITE);
     
-    int res = VOP_WRITE(global_oft[index]->vnodeptr, &u_io);
+    int res = VOP_WRITE(global_oft[index].vnodeptr, &u_io);
     if(res){
         *retval = -1;
         return res;
     }
     //return the retcal and new offset
-    *retval = u_io.uio_offset - file->Offset;
-    global_oft[index]->Offset = u_io.uio_offset;
+    *retval = u_io.uio_offset - global_oft[index].Offset;
+    global_oft[index].Offset = u_io.uio_offset;
 
+    return 0;
+}
+
+int sys_dup2(int oldfd, int newfd, int *retval){
+    // check all the fd is valid
+    if(oldfd >= OPEN_MAX || oldfd < 0){
+        *retval = -1;
+        return EBADF;
+    }
+    if(newfd >= OPEN_MAX || newfd < 0){
+        *retval = -1;
+        return EBADF;
+    }
+    // grab the index for global_oft and check if its valid
+    int oldIndex = curproc->FileDescriptorTable[oldfd];
+    int newIndex = curproc->FileDescriptorTable[newfd];
+    if(oldIndex >= OPEN_MAX || oldIndex < 0){
+        *retval = -1;
+        return EBADF;
+    }
+    if(newIndex >= OPEN_MAX || newIndex < 0){
+        *retval = -1;
+        return EBADF;
+    }
+    // If they are are same file descriptor do nothing
+    if(oldfd == newfd){
+        *retval = newfd;
+        return 0;
+    }
+    // Nothing in the old fd
+    if(global_oft[oldIndex].vnodeptr == NULL){
+        *retval = -1;
+        return EBADF;
+    }
+    // Check if the new File descriptor is an opened one
+    if(global_oft[newIndex].vnodeptr != NULL){
+        int err = sys_close(newfd, &retval);
+        if(err){
+            return EBADF;
+        }
+    }
+    // assigned the new fd as the old index and then increment the reference counter
+    // of the old index global_oft to show a new reference for it
+    curproc->FileDescriptorTable[newfd] = oldIndex;
+    global_oft[oldIndex].ReferenceCounter ++;
+    *retval = newfd;
     return 0;
 }
 
 //Function to initialze the tables when the program runs
 int initialize_tables(void){
-    *global_oft = kmalloc(OPEN_MAX * sizeof(struct OpenFileTable));
+    global_oft = kmalloc(OPEN_MAX * sizeof(struct OpenFileTable));
     // no memeory for the table;
     if(global_oft == NULL){
         return ENOMEM;
     }
     //initialize the tables
     for(int i = 0; i < OPEN_MAX; i++){
-        global_oft[i]->Flag = -1;
-        global_oft[i]->ReferenceCounter = 0;
-        global_oft[i]->Offset = 0;
-        global_oft[i]->vnodeptr = NULL;
+        global_oft[i].Flag = -1;
+        global_oft[i].ReferenceCounter = 0;
+        global_oft[i].Offset = 0;
+        global_oft[i].vnodeptr = NULL;
     }
     //connect the stdout and stderr to console
     char con1[5] = "cons:";
     char con2[5] = "cons:";
 
-    global_oft[1]->Flag = O_WRONLY;
-    global_oft[1]->ReferenceCounter = 1;
-    global_oft[1]->Offset = 0;
-    vfs_open(con1, O_WRONLY, 0, &global_oft[1]->vnodeptr);
+    global_oft[1].Flag = O_WRONLY;
+    global_oft[1].ReferenceCounter = 1;
+    global_oft[1].Offset = 0;
+    vfs_open(con1, O_WRONLY, 0, &global_oft[1].vnodeptr);
 
-    global_oft[2]->Flag = O_WRONLY;
-    global_oft[2]->ReferenceCounter = 1;
-    global_oft[2]->Offset = 0;
-    vfs_open(con2, O_WRONLY, 0, &global_oft[2]->vnodeptr);
+    global_oft[2].Flag = O_WRONLY;
+    global_oft[2].ReferenceCounter = 1;
+    global_oft[2].Offset = 0;
+    vfs_open(con2, O_WRONLY, 0, &global_oft[2].vnodeptr);
     return 0;
 }

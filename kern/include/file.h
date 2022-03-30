@@ -28,7 +28,9 @@ struct OpenFileTable *global_oft;
 // The functions implementation
 int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval);
 int sys_close(int fd, int *retval);
+int sys_dup2(int oldfd, int newfd);
 ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval);
+
 
 
 //HELPER
