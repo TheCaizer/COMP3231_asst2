@@ -131,8 +131,8 @@ int sys_close(int fd, int *retval){
         return EBADF;
     }
     // check if there are reference counters if so decrement
-    if(global_oft[index]->ReferenceCounter > 0){
-        global_oft[index]->ReferenceCounter--;
+    if(global_oft[index].ReferenceCounter > 0){
+        global_oft[index].ReferenceCounter--;
     }
     // If not then error
     else{
@@ -174,9 +174,9 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
     struct iovec iov;
     struct uio u_io;
     // Get the UIO
-    uio_uinit(&iov, &u_io, (userptr_t) buf, nbytes, global_oft[index]->Offset, UIO_WRITE);
+    uio_uinit(&iov, &u_io, (userptr_t) buf, nbytes, global_oft[index].Offset, UIO_WRITE);
     
-    int res = VOP_WRITE(global_oft[index]->vnodeptr, &u_io);
+    int res = VOP_WRITE(global_oft[index].vnodeptr, &u_io);
     if(res){
         *retval = -1;
         return res;
@@ -185,6 +185,52 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
     *retval = u_io.uio_offset - global_oft[index].Offset;
     global_oft[index].Offset = u_io.uio_offset;
 
+    return 0;
+}
+
+int sys_dup2(int oldfd, int newfd, int *retval){
+    // check all the fd is valid
+    if(oldfd >= OPEN_MAX || oldfd < 0){
+        *retval = -1;
+        return EBADF;
+    }
+    if(newfd >= OPEN_MAX || newfd < 0){
+        *retval = -1;
+        return EBADF;
+    }
+    // grab the index for global_oft and check if its valid
+    int oldIndex = curproc->FileDescriptorTable[oldfd];
+    int newIndex = curproc->FileDescriptorTable[newfd];
+    if(oldIndex >= OPEN_MAX || oldIndex < 0){
+        *retval = -1;
+        return EBADF;
+    }
+    if(newIndex >= OPEN_MAX || newIndex < 0){
+        *retval = -1;
+        return EBADF;
+    }
+    // If they are are same file descriptor do nothing
+    if(oldfd == newfd){
+        *retval = newfd;
+        return 0;
+    }
+    // Nothing in the old fd
+    if(global_oft[oldIndex].vnodeptr == NULL){
+        *retval = -1;
+        return EBADF;
+    }
+    // Check if the new File descriptor is an opened one
+    if(global_oft[newIndex].vnodeptr != NULL){
+        int err = sys_close(newfd, &retval);
+        if(err){
+            return EBADF;
+        }
+    }
+    // assigned the new fd as the old index and then increment the reference counter
+    // of the old index global_oft to show a new reference for it
+    curproc->FileDescriptorTable[newfd] = oldIndex;
+    global_oft[oldIndex].ReferenceCounter ++;
+    *retval = newfd;
     return 0;
 }
 
