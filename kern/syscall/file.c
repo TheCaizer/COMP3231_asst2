@@ -24,19 +24,21 @@ ssize_t sys_read(int fd, void *buf, size_t buflen, int *retval){
         return EBADF;
     }
 
+    int index = curproc->FileDescriptorTable[fd];
+
     struct iovec iovecRead;
     struct uio uioRead;
     
-    uio_uinit(&iovecRead,&uioRead,buf,buflen,curproc->FileDescriptorTable[fd]->Offset,UIO_READ);
+    uio_uinit(&iovecRead,&uioRead,buf,buflen,global_oft[index].Offset,UIO_READ);
 
-    int err = VOP_READ(curproc->FileDescriptorTable[fd]->vnodeptr,uioRead);
+    int err = VOP_READ(global_oft[index].vnodeptr,uioRead);
 
     if(err){
         *retval = -1;
         return err;
     }
 
-    curproc->FileDescriptorTable[fd]->Offset = uioRead.uio_offset;
+    global_oft[index].Offset = uioRead.uio_offset;
 
     *retval = buflen - uioRead.uio_resid;
     return 0;
@@ -70,22 +72,20 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     
     int oftPos; 
 
-    struct OpenFileTable **fd;
+  
     // Check for a empty gloabl_oft slot
     for(int i = 0; i <OPEN_MAX; i++){
-        if(global_oft[i]->vnodeptr == NULL){
+        if(global_oft[i].vnodeptr == NULL){
             oftPos = i;
             spaceFound = true;
-            global_oft[oftPos] = kmalloc(sizeof(struct OpenFileTable));
-            global_oft[oftPos]->Flag = flags;
-            global_oft[oftPos]->vnodeptr = retVn;
-            global_oft[oftPos]->Offset = 0;
-            global_oft[oftPos]->ReferenceCounter = 1;
-            fd = &global_oft[oftPos];
+            global_oft[oftPos].Flag = flags;
+            global_oft[oftPos].vnodeptr = retVn;
+            global_oft[oftPos].Offset = 0;
+            global_oft[oftPos].ReferenceCounter = 1;
             break;
         }
     }
-    // No sapce
+    // No space
     if(spaceFound == false){
         vfs_close(retVn);
         *retval = -1;
@@ -96,7 +96,7 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     //Check for empty FileDescriptor Slot
     for(int j = 0; j <OPEN_MAX; j++){
         if(curproc->FileDescriptorTable[j]== NULL){
-            curproc->FileDescriptorTable[j] = fd;
+            curproc->FileDescriptorTable[j] = oftPos;
             *retval = j;
             spaceFound = true;
             break;
@@ -105,13 +105,11 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     if(!spaceFound){
         *retval = -1;
         vfs_close(retVn);
-        kfree(*fd);
         // Close from the of table
-        global_oft[oftPos]->Flag = -1;
-        global_oft[oftPos]->ReferenceCounter = 0;
-        global_oft[oftPos]->Offset = 0;
-        global_oft[oftPos]->vnodeptr = NULL;
-        kfree(global_oft[oftPos]);
+        global_oft[oftPos].Flag = -1;
+        global_oft[oftPos].ReferenceCounter = 0;
+        global_oft[oftPos].Offset = 0;
+        global_oft[oftPos].vnodeptr = NULL;
         return EMFILE;
     }
 
@@ -144,11 +142,11 @@ int sys_close(int fd, int *retval){
     // Unassigned the fd
     curproc->FileDescriptorTable[fd] = -1;
     // There are no reference counter threfore we close the file
-    if(global_oft[index]->ReferenceCounter == 0){
-        vfs_close(global_oft[index]->vnodeptr);
-        global_oft[index]->Offset = 0;
-        global_oft[index]->vnodeptr = NULL;
-        global_oft[index]->Flag = -1;
+    if(global_oft[index].ReferenceCounter == 0){
+        vfs_close(global_oft[index].vnodeptr);
+        global_oft[index].Offset = 0;
+        global_oft[index].vnodeptr = NULL;
+        global_oft[index].Flag = -1;
     }
     *retval = 0;
     return 0;
@@ -168,7 +166,7 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
         return EBADF;
     }
     // Check if you can write to it
-    if(file->Flag == O_RDONLY){
+    if(global_oft[index].Flag == O_RDONLY){
         *retval = -1;
         return EBADF;
     }
@@ -184,38 +182,38 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
         return res;
     }
     //return the retcal and new offset
-    *retval = u_io.uio_offset - file->Offset;
-    global_oft[index]->Offset = u_io.uio_offset;
+    *retval = u_io.uio_offset - global_oft[index].Offset;
+    global_oft[index].Offset = u_io.uio_offset;
 
     return 0;
 }
 
 //Function to initialze the tables when the program runs
 int initialize_tables(void){
-    *global_oft = kmalloc(OPEN_MAX * sizeof(struct OpenFileTable));
+    global_oft = kmalloc(OPEN_MAX * sizeof(struct OpenFileTable));
     // no memeory for the table;
     if(global_oft == NULL){
         return ENOMEM;
     }
     //initialize the tables
     for(int i = 0; i < OPEN_MAX; i++){
-        global_oft[i]->Flag = -1;
-        global_oft[i]->ReferenceCounter = 0;
-        global_oft[i]->Offset = 0;
-        global_oft[i]->vnodeptr = NULL;
+        global_oft[i].Flag = -1;
+        global_oft[i].ReferenceCounter = 0;
+        global_oft[i].Offset = 0;
+        global_oft[i].vnodeptr = NULL;
     }
     //connect the stdout and stderr to console
     char con1[5] = "cons:";
     char con2[5] = "cons:";
 
-    global_oft[1]->Flag = O_WRONLY;
-    global_oft[1]->ReferenceCounter = 1;
-    global_oft[1]->Offset = 0;
-    vfs_open(con1, O_WRONLY, 0, &global_oft[1]->vnodeptr);
+    global_oft[1].Flag = O_WRONLY;
+    global_oft[1].ReferenceCounter = 1;
+    global_oft[1].Offset = 0;
+    vfs_open(con1, O_WRONLY, 0, &global_oft[1].vnodeptr);
 
-    global_oft[2]->Flag = O_WRONLY;
-    global_oft[2]->ReferenceCounter = 1;
-    global_oft[2]->Offset = 0;
-    vfs_open(con2, O_WRONLY, 0, &global_oft[2]->vnodeptr);
+    global_oft[2].Flag = O_WRONLY;
+    global_oft[2].ReferenceCounter = 1;
+    global_oft[2].Offset = 0;
+    vfs_open(con2, O_WRONLY, 0, &global_oft[2].vnodeptr);
     return 0;
 }
