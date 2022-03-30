@@ -101,30 +101,32 @@ int sys_close(int fd, int *retval){
         *retval = -1;
         return EBADF;
     }
-    // Open the file in the FileDescriptorTable
-    struct OpenFileTable *file = *(curproc->FileDescriptorTable[fd]);
-    // Check if it is a null value then return error
-    if(file == NULL){
+    // Find the index of the current oft
+    int index =  curproc->FileDescriptorTable[fd];
+    // Check it is valid
+    if(index >= OPEN_MAX || index < 0){
         *retval = -1;
         return EBADF;
     }
     // check if there are reference counters if so decrement
-    if(file->ReferenceCounter > 0){
-        file->ReferenceCounter--;
+    if(global_oft[index]->ReferenceCounter > 0){
+        global_oft[index]->ReferenceCounter--;
     }
     // If not then error
     else{
         *retval = -1;
         return ENOENT;
     }
+    // Unassigned the fd
+    curproc->FileDescriptorTable[fd] = -1;
     // There are no reference counter threfore we close the file
-    if(file->ReferenceCounter == 0){
-        vfs_close(file->vnodeptr);
-        kfree(file);
-        *curproc->FileDescriptorTable[fd] = NULL;
+    if(global_oft[index]->ReferenceCounter == 0){
+        vfs_close(global_oft[index]->vnodeptr);
+        global_oft[index]->Offset = 0;
+        global_oft[index]->vnodeptr = NULL;
+        global_oft[index]->Flag = -1;
     }
     *retval = 0;
-    curproc->FileDescriptorTable[fd] = NULL;
     return 0;
 }
 
@@ -134,10 +136,10 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
         *retval = -1;
         return EBADF;
     }
-    // Open the file in the FileDescriptorTable
-    struct OpenFileTable *file = *curproc->FileDescriptorTable[fd];
-    // Check if it is a null value then return error
-    if(file == NULL){
+    // Get index
+    int index =  curproc->FileDescriptorTable[fd];
+    // Check it is valid
+    if(index < 0 || index >= OPEN_MAX){
         *retval = -1;
         return EBADF;
     }
@@ -150,40 +152,35 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
     struct iovec iov;
     struct uio u_io;
     // Get the UIO
-    uio_uinit(&iov, &u_io, (userptr_t) buf, nbytes, file->Offset, UIO_WRITE);
+    uio_uinit(&iov, &u_io, (userptr_t) buf, nbytes, global_oft[index]->Offset, UIO_WRITE);
     
-    int res = VOP_WRITE(file->vnodeptr, &u_io);
+    int res = VOP_WRITE(global_oft[index]->vnodeptr, &u_io);
     if(res){
         *retval = -1;
         return res;
     }
+    //return the retcal and new offset
     *retval = u_io.uio_offset - file->Offset;
-    file->Offset = u_io.uio_offset;
+    global_oft[index]->Offset = u_io.uio_offset;
 
     return 0;
 }
 
 //Function to initialze the tables when the program runs
-int initialize_tables(){
+int initialize_tables(void){
     *global_oft = kmalloc(OPEN_MAX * sizeof(struct OpenFileTable));
     // no memeory for the table;
     if(global_oft == NULL){
         return ENOMEM;
     }
+    //initialize the tables
     for(int i = 0; i < OPEN_MAX; i++){
-        struct OpenFileTable *newOft;
-        newOft = kmalloc(sizeof(struct OpenFileTable));
-        newOft->Flag = -1;
-        newOft->ReferenceCounter = 0;
-        newOft->Offset = 0;
-        newOft->vnodeptr = NULL;
-        global_oft[i] = newOft;
+        global_oft[i]->Flag = -1;
+        global_oft[i]->ReferenceCounter = 0;
+        global_oft[i]->Offset = 0;
+        global_oft[i]->vnodeptr = NULL;
     }
-    
-    for(int j = 0; j < OPEN_MAX;j++){
-        curproc->FileDescriptorTable[j] = NULL;
-    }
-    //Only need to connect the stdout and stderr to console
+    //connect the stdout and stderr to console
     char con1[5] = "cons:";
     char con2[5] = "cons:";
 

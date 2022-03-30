@@ -141,7 +141,10 @@ boot(void)
 	COMPILE_ASSERT(sizeof(userptr_t) == sizeof(char *));
 	COMPILE_ASSERT(sizeof(*(userptr_t)0) == sizeof(char));
     //Make the tables
-    initialize_tables();
+    int res = initialize_tables();
+    if(res){
+        panic("Failed to initialize tables");
+    }
 }
 
 /*
@@ -161,6 +164,9 @@ shutdown(void)
 	thread_shutdown();
 
 	splhigh();
+
+    //Free the global_oft tables
+    kfree(global_oft);
 }
 
 /*****************************************/
