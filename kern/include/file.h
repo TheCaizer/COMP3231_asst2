@@ -22,6 +22,7 @@ struct OpenFileTable{
 };
 
 int sys_open(userptr_t filename, int flags, mode_t mode, int *retval);
+sys_read(int fd, void *buf, size_t buflen, int *retval);
 // global open file table
 struct OpenFileTable *global_oft[OPEN_MAX];
 

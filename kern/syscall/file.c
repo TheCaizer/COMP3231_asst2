@@ -18,6 +18,30 @@
 /*
  * Add your file-related functions here ...
  */
+ssize_t sys_read(int fd, void *buf, size_t buflen, int *retval){
+    if (curproc->FileDescriptorTable[fd] = NULL){
+        *retval = -1;
+        return EBADF;
+    }
+
+    struct iovec iovecRead;
+    struct uio uioRead;
+    
+    uio_uinit(&iovecRead,&uioRead,buf,buflen,curproc->FileDescriptorTable[fd]->Offset,UIO_READ);
+
+    int err = VOP_READ(curproc->FileDescriptorTable[fd]->vnodeptr,uioRead);
+
+    if(err){
+        *retval = -1;
+        return err;
+    }
+
+    curproc->FileDescriptorTable[fd]->Offset = uioRead.uio_offset;
+
+    *retval = buflen - uioRead.uio_resid;
+    return 0;
+
+}
 int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     struct vnode * retVn;
 
@@ -49,7 +73,7 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     struct OpenFileTable **fd;
 
     for(int i = 0; i <OPEN_MAX; i++){
-        if(global_oft[i]== NULL){
+        if(global_oft[i]->vnodeptr== NULL){
             oftPos = i;
             spaceFound = true;
             global_oft[oftPos] = kmalloc(sizeof(struct OpenFileTable));
