@@ -18,6 +18,32 @@
 /*
  * Add your file-related functions here ...
  */
+ssize_t sys_read(int fd, void *buf, size_t buflen, int *retval){
+    if (curproc->FileDescriptorTable[fd] = NULL){
+        *retval = -1;
+        return EBADF;
+    }
+
+    int index = curproc->FileDescriptorTable[fd];
+
+    struct iovec iovecRead;
+    struct uio uioRead;
+    
+    uio_uinit(&iovecRead,&uioRead,buf,buflen,global_oft[index].Offset,UIO_READ);
+
+    int err = VOP_READ(global_oft[index].vnodeptr,uioRead);
+
+    if(err){
+        *retval = -1;
+        return err;
+    }
+
+    global_oft[index].Offset = uioRead.uio_offset;
+
+    *retval = buflen - uioRead.uio_resid;
+    return 0;
+
+}
 int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     struct vnode * retVn;
 
@@ -46,22 +72,20 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     
     int oftPos; 
 
-    struct OpenFileTable **fd;
+  
     // Check for a empty gloabl_oft slot
     for(int i = 0; i <OPEN_MAX; i++){
-        if(global_oft[i]->vnodeptr == NULL){
+        if(global_oft[i].vnodeptr == NULL){
             oftPos = i;
             spaceFound = true;
-            global_oft[oftPos] = kmalloc(sizeof(struct OpenFileTable));
-            global_oft[oftPos]->Flag = flags;
-            global_oft[oftPos]->vnodeptr = retVn;
-            global_oft[oftPos]->Offset = 0;
-            global_oft[oftPos]->ReferenceCounter = 1;
-            fd = &global_oft[oftPos];
+            global_oft[oftPos].Flag = flags;
+            global_oft[oftPos].vnodeptr = retVn;
+            global_oft[oftPos].Offset = 0;
+            global_oft[oftPos].ReferenceCounter = 1;
             break;
         }
     }
-    // No sapce
+    // No space
     if(spaceFound == false){
         vfs_close(retVn);
         *retval = -1;
@@ -72,7 +96,7 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     //Check for empty FileDescriptor Slot
     for(int j = 0; j <OPEN_MAX; j++){
         if(curproc->FileDescriptorTable[j]== NULL){
-            curproc->FileDescriptorTable[j] = fd;
+            curproc->FileDescriptorTable[j] = oftPos;
             *retval = j;
             spaceFound = true;
             break;
@@ -81,13 +105,11 @@ int sys_open(const userptr_t filename, int flags, mode_t mode, int *retval){
     if(!spaceFound){
         *retval = -1;
         vfs_close(retVn);
-        kfree(*fd);
         // Close from the of table
-        global_oft[oftPos]->Flag = -1;
-        global_oft[oftPos]->ReferenceCounter = 0;
-        global_oft[oftPos]->Offset = 0;
-        global_oft[oftPos]->vnodeptr = NULL;
-        kfree(global_oft[oftPos]);
+        global_oft[oftPos].Flag = -1;
+        global_oft[oftPos].ReferenceCounter = 0;
+        global_oft[oftPos].Offset = 0;
+        global_oft[oftPos].vnodeptr = NULL;
         return EMFILE;
     }
 
@@ -144,7 +166,7 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
         return EBADF;
     }
     // Check if you can write to it
-    if(file->Flag == O_RDONLY){
+    if(global_oft[index].Flag == O_RDONLY){
         *retval = -1;
         return EBADF;
     }
