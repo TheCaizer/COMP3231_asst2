@@ -45,7 +45,6 @@ ssize_t sys_read(int fd, void *buf, size_t buflen, int *retval){
 
 }
 int sys_open(userptr_t filename, int flags, mode_t mode, int *retval){
-    struct vnode * retVn;
 
     bool spaceFound = false;
     char *filenameStr = kmalloc(sizeof(char) * NAME_MAX);
@@ -62,32 +61,23 @@ int sys_open(userptr_t filename, int flags, mode_t mode, int *retval){
         *retval = -1;
         return err;
     }
-    // Looks ok vfs_open
-    int res = vfs_open(filenameStr, flags, mode,&retVn);
-
-    if(res){
-        *retval = -1;
-        return res;
-    }
     
     int oftPos; 
 
   
     // Check for a empty gloabl_oft slot
-    for(int i = 0; i <OPEN_MAX; i++){
+    for(int i = 3; i <OPEN_MAX; i++){
         if(global_oft[i].vnodeptr == NULL){
             oftPos = i;
             spaceFound = true;
             global_oft[oftPos].Flag = flags;
-            global_oft[oftPos].vnodeptr = retVn;
             global_oft[oftPos].Offset = 0;
             global_oft[oftPos].ReferenceCounter = 1;
-            break;
+            i = OPEN_MAX;
         }
     }
     // No space
     if(spaceFound == false){
-        vfs_close(retVn);
         *retval = -1;
         return ENFILE;
     }
@@ -99,18 +89,25 @@ int sys_open(userptr_t filename, int flags, mode_t mode, int *retval){
             curproc->FileDescriptorTable[j] = oftPos;
             *retval = j;
             spaceFound = true;
-            break;
+            j = OPEN_MAX;
         }
     }
-    if(!spaceFound){
+    if(spaceFound == false){
         *retval = -1;
-        vfs_close(retVn);
         // Close from the of table
         global_oft[oftPos].Flag = -1;
         global_oft[oftPos].ReferenceCounter = 0;
         global_oft[oftPos].Offset = 0;
         global_oft[oftPos].vnodeptr = NULL;
         return EMFILE;
+    }
+    
+    // Looks ok vfs_open
+    int res = vfs_open(filenameStr, flags, mode, &global_oft[oftPos].vnodeptr);
+
+    if(res){
+        *retval = -1;
+        return res;
     }
 
     kfree(filenameStr);
@@ -249,17 +246,18 @@ int initialize_tables(void){
         global_oft[i].vnodeptr = NULL;
     }
     //connect the stdout and stderr to console
-    char con1[5] = "cons:";
-    char con2[5] = "cons:";
+    char conname[5];
 
+    strcpy(conname, "cons:");
     global_oft[1].Flag = O_WRONLY;
     global_oft[1].ReferenceCounter = 1;
     global_oft[1].Offset = 0;
-    vfs_open(con1, O_WRONLY, 0, &global_oft[1].vnodeptr);
+    vfs_open(conname, O_WRONLY, 0, &global_oft[1].vnodeptr);
 
+    strcpy(conname, "cons:");
     global_oft[2].Flag = O_WRONLY;
     global_oft[2].ReferenceCounter = 1;
     global_oft[2].Offset = 0;
-    vfs_open(con2, O_WRONLY, 0, &global_oft[2].vnodeptr);
+    vfs_open(conname, O_WRONLY, 0, &global_oft[2].vnodeptr);
     return 0;
 }

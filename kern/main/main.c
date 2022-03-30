@@ -103,7 +103,7 @@ boot(void)
 	kprintf("%s", harvard_copyright);
 	kprintf("\n");
 
-	kprintf("Put-your-group-name-here's system version %s (%s #%d)\n",
+	kprintf("grp277 system version %s (%s #%d)\n",
 		GROUP_VERSION, buildconfig, buildversion);
 	kprintf("\n");
 
@@ -140,6 +140,7 @@ boot(void)
 	 */
 	COMPILE_ASSERT(sizeof(userptr_t) == sizeof(char *));
 	COMPILE_ASSERT(sizeof(*(userptr_t)0) == sizeof(char));
+
     //Make the tables
     int res = initialize_tables();
     if(res){
