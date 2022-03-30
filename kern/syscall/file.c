@@ -18,6 +18,51 @@
 /*
  * Add your file-related functions here ...
  */
+int lseek(int fd, off_t pos, int whence, int *retval){
+    int index = curproc->FileDescriptorTable[fd];
+    int err;
+    struct stat vnodeStat;
+
+    err = VOP_STAT(global_oft[index].vnodeptr, &vnodeStat);
+
+    if(err){
+        *retval = -1;
+        return err;
+    }
+
+    switch (whence){
+    case SEEK_SET:
+        if(pos < 0 || pos > vnodeStat.st_size){
+            *retval = -1;
+            return EINVAL;
+        }
+         global_oft[index].Offset = pos;
+        *retval = 0;
+        return pos;
+    case SEEK_CUR:
+        if((global_oft[index].Offset + pos) < 0 || (global_oft[index].Offset + pos) > vnodeStat.st_size){
+            *retval = -1;
+            return EINVAL;
+        }
+       global_oft[index].Offset = global_oft[index].Offset + pos;
+        *retval = 0;
+        return  global_oft[index].Offset;
+
+    case SEEK_END: 
+        if((vnodeStat.st_size + pos) < 0 || (vnodeStat.st_size + pos) > vnodeStat.st_size){
+            *retval = -1;
+            return EINVAL;
+        }
+
+        global_oft[index].Offset = vnodeStat.st_size + pos;
+        *retval = 0;
+        return global_oft[index].Offset;
+
+    default:
+        *retval = -1;
+        return EINVAL;
+    }
+}
 ssize_t sys_read(int fd, void *buf, size_t buflen, int *retval){
     if (curproc->FileDescriptorTable[fd] == -1){
         *retval = -1;
