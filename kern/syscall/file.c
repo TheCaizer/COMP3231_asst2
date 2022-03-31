@@ -62,7 +62,7 @@ off_t sys_lseek(int fd, off_t pos, int whence, off_t *retval){
             return EINVAL;
         }
         global_oft[index].Offset = global_oft[index].Offset + pos;
-        *retval = global_oft[index].Offset + pos;
+        *retval = global_oft[index].Offset;
         return  0;
 
     case SEEK_END: 
