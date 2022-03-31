@@ -108,7 +108,9 @@ ssize_t sys_read(int fd, void *buf, size_t buflen, int *retval){
     }
 
     // Check if you can read it
-    if(global_oft[index].Flag == O_WRONLY){
+    // also check if it is a create and write
+    int createNwrite = O_WRONLY|O_CREAT;
+    if(global_oft[index].Flag == O_WRONLY || global_oft[index].Flag == createNwrite){
         *retval = -1;
         return EBADF;
     }
@@ -256,7 +258,9 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
     }
 
     // Check if you can write to it
-    if(global_oft[index].Flag == O_RDONLY){
+    // also check if it is a create and read
+    int createNread = O_RDONLY|O_CREAT;
+    if(global_oft[index].Flag == O_RDONLY || global_oft[index].Flag == createNread){
         *retval = -1;
         return EBADF;
     }
