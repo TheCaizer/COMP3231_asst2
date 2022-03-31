@@ -29,7 +29,8 @@ off_t sys_lseek(int fd, off_t pos, int whence, off_t *retval){
         *retval = -1;
         return EBADF; 
     }
-    //Get Index
+
+    // Looks ok get the index 
     int index = curproc->FileDescriptorTable[fd];
     int err;
     struct stat vnodeStat;
@@ -39,11 +40,10 @@ off_t sys_lseek(int fd, off_t pos, int whence, off_t *retval){
         *retval = -1;
         return EPERM; 
     }
-    err = VOP_STAT(global_oft[index].vnodeptr, &vnodeStat);
-
-    if(err){
+    // Check seekable
+    if(!VOP_ISSEEKABLE(global_oft[index].vnodeptr)){
         *retval = -1;
-        return err;
+        return ESPIPE;
     }
 
     switch (whence){
@@ -52,16 +52,17 @@ off_t sys_lseek(int fd, off_t pos, int whence, off_t *retval){
             *retval = -1;
             return EINVAL;
         }
-         global_oft[index].Offset = pos;
+        global_oft[index].Offset = pos;
         *retval = pos;
         return 0;
+
     case SEEK_CUR:
         if((global_oft[index].Offset + pos) < 0 || (global_oft[index].Offset + pos) > vnodeStat.st_size){
             *retval = -1;
             return EINVAL;
         }
-       global_oft[index].Offset = global_oft[index].Offset + pos;
-        *retval = global_oft[index].Offset;
+        global_oft[index].Offset = global_oft[index].Offset + pos;
+        *retval = global_oft[index].Offset + pos;
         return  0;
 
     case SEEK_END: 
@@ -69,9 +70,14 @@ off_t sys_lseek(int fd, off_t pos, int whence, off_t *retval){
             *retval = -1;
             return EINVAL;
         }
+        err = VOP_STAT(global_oft[index].vnodeptr, &vnodeStat);
 
+        if(err){
+            *retval = -1;
+            return err;
+        }
         global_oft[index].Offset = vnodeStat.st_size + pos;
-        *retval = global_oft[index].Offset;
+        *retval = vnodeStat.st_size + pos;
         return 0;
 
     default:
