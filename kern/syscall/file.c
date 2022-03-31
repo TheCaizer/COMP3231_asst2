@@ -18,11 +18,27 @@
 /*
  * Add your file-related functions here ...
  */
-int sys_lseek(int fd, off_t pos, int whence, int64_t *retval){
+off_t sys_lseek(int fd, off_t pos, int whence, off_t *retval){
+    //Check valid fd
+    if(fd >= OPEN_MAX || fd < 0){
+        *retval = -1;
+        return EBADF;
+    }
+    //Check valid value
+    if(curproc->FileDescriptorTable[fd] >= OPEN_MAX || curproc->FileDescriptorTable[fd] < 0){
+        *retval = -1;
+        return EBADF; 
+    }
+    //Get Index
     int index = curproc->FileDescriptorTable[fd];
     int err;
     struct stat vnodeStat;
 
+    // Check there is an reference counter for the file
+    if(!global_oft[index].ReferenceCounter >= 1){
+        *retval = -1;
+        return EPERM; 
+    }
     err = VOP_STAT(global_oft[index].vnodeptr, &vnodeStat);
 
     if(err){
@@ -37,16 +53,16 @@ int sys_lseek(int fd, off_t pos, int whence, int64_t *retval){
             return EINVAL;
         }
          global_oft[index].Offset = pos;
-        *retval = 0;
-        return pos;
+        *retval = pos;
+        return 0;
     case SEEK_CUR:
         if((global_oft[index].Offset + pos) < 0 || (global_oft[index].Offset + pos) > vnodeStat.st_size){
             *retval = -1;
             return EINVAL;
         }
        global_oft[index].Offset = global_oft[index].Offset + pos;
-        *retval = 0;
-        return  global_oft[index].Offset;
+        *retval = global_oft[index].Offset;
+        return  0;
 
     case SEEK_END: 
         if((vnodeStat.st_size + pos) < 0 || (vnodeStat.st_size + pos) > vnodeStat.st_size){
@@ -55,8 +71,8 @@ int sys_lseek(int fd, off_t pos, int whence, int64_t *retval){
         }
 
         global_oft[index].Offset = vnodeStat.st_size + pos;
-        *retval = 0;
-        return global_oft[index].Offset;
+        *retval = global_oft[index].Offset;
+        return 0;
 
     default:
         *retval = -1;
@@ -75,8 +91,15 @@ ssize_t sys_read(int fd, void *buf, size_t buflen, int *retval){
         *retval = -1;
         return EBADF; 
     }
+    
     //Get Index
     int index = curproc->FileDescriptorTable[fd];
+
+    // Check there is an reference counter for the file
+    if(!global_oft[index].ReferenceCounter >= 1){
+        *retval = -1;
+        return EPERM; 
+    }
 
     // Check if you can read it
     if(global_oft[index].Flag == O_WRONLY){
@@ -175,13 +198,15 @@ int sys_close(int fd, int *retval){
         *retval = -1;
         return EBADF;
     }
-    // Find the index of the current oft
-    int index =  curproc->FileDescriptorTable[fd];
-    // Check it is valid
-    if(index >= OPEN_MAX || index < 0){
+    //Check valid value
+    if(curproc->FileDescriptorTable[fd] >= OPEN_MAX || curproc->FileDescriptorTable[fd] < 0){
         *retval = -1;
-        return EBADF;
+        return EBADF; 
     }
+
+    // Looks ok get the index
+    int index =  curproc->FileDescriptorTable[fd];
+
     // check if there are reference counters if so decrement
     if(global_oft[index].ReferenceCounter > 0){
         global_oft[index].ReferenceCounter--;
@@ -217,6 +242,12 @@ ssize_t sys_write(int fd, const void *buf, size_t nbytes, int *retval){
     }
     // OK fd then Get index
     int index =  curproc->FileDescriptorTable[fd];
+
+    // Check there is an reference counter for the file
+    if(!global_oft[index].ReferenceCounter >= 1){
+        *retval = -1;
+        return EPERM; 
+    }
 
     // Check if you can write to it
     if(global_oft[index].Flag == O_RDONLY){
@@ -272,6 +303,7 @@ int sys_dup2(int oldfd, int newfd, int *retval){
         *retval = -1;
         return EBADF;
     }
+
     // Check if the new File descriptor is an opened one
     if(global_oft[newIndex].vnodeptr != NULL){
         sys_close(newfd, retval);
