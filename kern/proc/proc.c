@@ -82,8 +82,12 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 
+    // We have to kmalloc in the heap since we shouldn't be making large local
+    // arrays in the stack
+    proc->FileDescriptorTable = kmalloc(sizeof(int) * OPEN_MAX);
+
     // Create the fd table for every process
-    for(int j = 3; j < OPEN_MAX; j++){
+    for(int j = 0; j < OPEN_MAX; j++){
         proc->FileDescriptorTable[j] = -1;
     }    
 
@@ -174,6 +178,8 @@ proc_destroy(struct proc *proc)
 	spinlock_cleanup(&proc->p_lock);
 
 	kfree(proc->p_name);
+    // Free the kmalloc FileDescriptorTable
+    kfree(proc->FileDescriptorTable);
 	kfree(proc);
 }
 

@@ -186,7 +186,7 @@ int sys_open(userptr_t filename, int flags, mode_t mode, int *retval){
     global_oft[oftPos].Offset = 0;
     global_oft[oftPos].ReferenceCounter = 1;
 
-    // Looks ok vfs_open
+    // Looks ok vfs_open to set vnodeptr
     int res = vfs_open(filenameStr, flags, mode, &global_oft[oftPos].vnodeptr);
 
     if(res){
@@ -195,7 +195,7 @@ int sys_open(userptr_t filename, int flags, mode_t mode, int *retval){
     }
 
     kfree(filenameStr);
-    return res;
+    return 0;
 }
 
 int sys_close(int fd, int *retval){
@@ -319,7 +319,7 @@ int sys_dup2(int oldfd, int newfd, int *retval){
         }
     }
 
-    // assigned the new fd as the old index and then increment the reference counter
+    // assigned the new fd as the old index and increment the reference counter
     // of the old index global_oft to show a new reference for it
     *retval = newfd;
     global_oft[oldIndex].ReferenceCounter++;
