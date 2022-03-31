@@ -1,45 +1,51 @@
-The design we were going for was to create a OpenFileTable struct which contains 
-the information of the file as show below:
+﻿What significant data structures have you added and what function do they perform?
+The design we were going for was to create a OpenFileTable entry struct which contains the information of the file as show below:
+
 struct{
     int Flag; // The flag for the opened file
     struct vnode* vnodeptr; // Pointer to the vnode
     off_t Offset; // Number of bytes offset for the opened file 
     int ReferenceCounter; // Number of reference for this file
 } OpenFileTable;
-Then we would have a global vairable called global_oft which is shared between all
-the processes. global_oft is a pointers that point to one of these struct
-for each file.
-struct OpenFileTable *global_oft;
-The per-process file descriptor table is an int array that returns the value which corresponds to the index of global_oft.
-int FileDescriptorTable[OPEN_MAX];
-Which is inside the proc struct in proc.h so that it in every process as shown in the lecture slides.
-We have file descriptors in each process in proc.h whose index is the file descriptors.
 
-HOW TO IMPLEMENT THE FUNCTIONS:
+Then we would have a global vairable called global_oft which is shared between all the processes. global_oft is a pointer to an array that contains OPEN_MAX OpenFileTable structs. 
+
+struct OpenFileTable *global_oft;
+
+The per-process file descriptor table is an int array that returns the value which corresponds to the index of global_oft where the corresponding OpenFileTable struct is stored. Which is inside the proc struct in proc.h so that it in every process as shown in the lecture slides. We have file descriptors in each process in proc.h whose index is the file descriptors.
+
+int *FileDescriptorTable;
+
 open();
-We check the filename is valid and if it is invoke vfs_open();
+We check the filename is valid and if it is, we find a free space in the global oft and the per process file descriptor table to store data about the file. We set the values of the attributes of the OpenFileTable struct to the correct initial values. We then invoke vfs_open() and return 0 and the corresponding position in the file descriptor table if successful. If there is an error we return -1 and the corresponding error code.
 
 close();
 To close a file we have to check if fd is valid and there is a valid number in the global_oft corresponding to the fd, 
 we decrement the reference counter and then unassigned the fd. 
-If ReferenceCounter goes to 0 we can close the file if greater than 0 we don't. We retun 0 on success.
-retval is -1 for error and 0 for success.
+If ReferenceCounter goes to 0 we can close the file if greater than 0 we don't. We retun 0 on success.If there is an error we return -1 and the corresponding error code.
 
-read(;
-We check the fd is valid and the flag is read or rw. Use uio_kinit to get an uio and pass
-into VOP_READ(vnode, uio).
+read();
+We check the fd is valid and the flag is read or rw. Use uio_kinit to get an uio and pass into VOP_READ(vnode, uio). After this we update the offset attribute of the corresponding OpenFileTable struct accordingly. We then return 0 and new offset on success. If there is an error we return -1 and the corresponding error code.
 
 write();
-Similar to read we need to check if the fd is valid and then check the flag is write or rw.
-Then we use uio_kinit to get an uio then pass it into VOP_WRITE(vnode, uio).
+Similar to read we need to check if the fd is valid and then check the flag is write or rw. Then we use uio_kinit to get an uio then pass it into VOP_WRITE(vnode, uio).After this we update the offset attribute of the corresponding OpenFileTable struct accordingly. We then return 0 and new offset on success. If there is an error we return -1 and the corresponding error code.
 
 lseek();
-We check if the fd is valid, then if it is update the vnode pointer in the fd to 
-the offset input either relative to the start, end or current position in the file
-depending on the value of whence.
+We check if the fd is valid, then if it is update the offset value in the corresponding OpenFileTable struct in the global oft to the offset input either relative to the start, end or current position in the file depending on the value of whence. We then return 0 and new offset on success. If there is an error we return -1 and the corresponding error code.
 
 dup2();
-We check if fd is a valid one then we check if the newFD is a opened file or not
-if it is then we can close the old file and then point to the new file. If it is 
-not then we can open the file and then close old and point to new. If new and 
-old are the same then we do nothing.
+We check if fd is a valid one then we check if the newFD is an opened file or not if it is then we can close the old file and then point to the new file. If it is not then we can open the file and then close old and point to new. If new and old are the same then we do nothing. We return 0 and the fd on success and we return -1 and the corresponding error code on failure.
+
+What are any significant issues surround managing the data structures and state do they contain?
+We had to ensure that the values in the global open file table and the per-process file descriptor  tables were initialised to the correct initial values before they were accessed by any processes. This was done to ensure all entries were initialised in a consistent way so that they could be detected as unused by syscalls so that they could be used to store new entries.  
+
+What data structures are per-process and what structures are shared between processes?
+As outlined in the response to the first question, each process has it’s own FileDescriptorTable int array, which stores the indexs of the corresponding OpenFileTable structs in the global_oft  OpenFileTable array which is shared between all processes.
+
+What is the main issues related to transferring data to and from applications?
+It was necessary to have global_oft be a pointer to an array of OpenFileTable structs. The array itself was allocated using kmalloc(), this is because we need this array to be stored in the heap rather than the stack so that it can be shared between processes. If we were to declare global_oft as an array of OpenFileTable structs directly, it would be stored in the stack for the currently running process, and therefore not accessible by other processes.
+We used copyin() and copyinstr() to convert the user pointer to a string, so that we can input the system call safely.
+We used uio structs to write and read between the applications and the kernel safely.  
+If fork() was implemented, what concurrency issues would be introduced to your implementation?
+Since fork() allows for the copying of a parent process into a child process and therefore multiple processes running at the same time, we would have to synchronise access to the array pointed to by global_oft (the global open file table) as it would be a shared resource between these multiple running processes. We would need to implement a lock for using the global open file table as otherwise there could be race conditions between multiple processes if they access the global open file table at the same time. 
+
