@@ -96,6 +96,11 @@ runprogram(char *progname)
 		/* p_addrspace will go away when curproc is destroyed */
 		return result;
 	}
+    // connect 0,1,2 to stdin, out, err has to be in runprogram since it
+    // "has to start out attached"
+    curproc->FileDescriptorTable[0] = 0;
+    curproc->FileDescriptorTable[1] = 1;
+    curproc->FileDescriptorTable[2] = 2;
 
 	/* Warp to user mode. */
 	enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
